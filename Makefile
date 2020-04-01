@@ -1,13 +1,28 @@
+#Lesson 2 加载软盘中的内容到内存，并跳转执行
+all: bootimg
+	
+	@#dd if=bootimg of=a.img bs=512 count=2 conv=notrunc
 
-boot.bin:boot.asm
-	@nasm -o boot.bin boot.asm
+bootsect: bootsect.s
+	@as -o bootsect.o bootsect.s
+	@ld -Ttext 0 -o bootsect bootsect.o
+	@objcopy -R .pdr -R .comment -R.note -S -O binary bootsect	
+	@#objcopy截取纯代码内容,忽略elf文件头等信息
 
-loader.bin:loader.asm
-	@nasm -o loader.bin loader.asm
+demo: demo.s
+	@as -o demo.o demo.s
+	@ld -Ttext 0 -o demo demo.o
+	@objcopy -R .pdr -R .comment -R.note -S -O binary demo
 
-bootimg:boot.bin loader.bin
-	@dd if=boot.bin of=bootimg bs=512 count=1
-	@dd if=loader.bin of=bootimg bs=512 count=1 seek=1
+bootimg: demo bootsect
+	@dd if=bootsect of=bootimg bs=512 count=1
+	@dd if=demo of=bootimg bs=512 count=4 seek=1
+
+run_q: bootimg
+	@qemu-system-i386 -boot a -fda bootimg
+
+run_b:bochsrc
+	@bochs -f bochsrc
 
 clean:
-	@rm -f bootimg boot.bin loader.bin *~
+	@rm -f bootimg bootsect demo *.o *~
